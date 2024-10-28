@@ -75,6 +75,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
     use ElementEditLockHelperTrait;
     use ApplySchedulerDataTrait;
     use UserNameTrait;
+
     final const PDF_MIMETYPE =  'application/pdf';
 
     protected Asset\Service $_assetService;
