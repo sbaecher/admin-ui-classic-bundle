@@ -616,11 +616,18 @@ class GridHelperService
         if (!$adminUser->isAdmin()) {
             $userIds = $adminUser->getRoles();
             $userIds[] = $adminUser->getId();
-            $conditionFilters[] = ' (
-                                                    (select list from users_workspaces_object where userId in (' . implode(',', $userIds) . ') and LOCATE(CONCAT(`path`,`key`),cpath)=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
-                                                    OR
-                                                    (select list from users_workspaces_object where userId in (' . implode(',', $userIds) . ') and LOCATE(cpath,CONCAT(`path`,`key`))=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
-                                                 )';
+            $conditionFilters[] = '(
+                    EXISTS (
+                        SELECT 1
+                        FROM users_workspaces_object
+                        WHERE userId IN (' . implode(',', $userIds) . ')
+                        AND (
+                            LOCATE(CONCAT(`path`, `key`), cpath) = 1
+                            OR LOCATE(cpath, CONCAT(`path`, `key`)) = 1
+                        )
+                        AND list = 1
+                    )
+                )';
         }
 
         $featureJoins = [];
@@ -853,11 +860,18 @@ class GridHelperService
         if (!$adminUser->isAdmin()) {
             $userIds = $adminUser->getRoles();
             $userIds[] = $adminUser->getId();
-            $conditionFilters[] = ' (
-                                                    (select list from users_workspaces_asset where userId in (' . implode(',', $userIds) . ') and LOCATE(CONCAT(`path`, filename),cpath)=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
-                                                    OR
-                                                    (select list from users_workspaces_asset where userId in (' . implode(',', $userIds) . ') and LOCATE(cpath,CONCAT(`path`, filename))=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
-                                                 )';
+            $conditionFilters[] = '(
+                    EXISTS (
+                        SELECT 1
+                        FROM users_workspaces_asset
+                        WHERE userId IN (' . implode(',', $userIds) . ')
+                        AND (
+                            LOCATE(CONCAT(`path`, `key`), cpath) = 1
+                            OR LOCATE(cpath, CONCAT(`path`, `key`)) = 1
+                        )
+                        AND list = 1
+                    )
+                )';
         }
 
         //filtering for tags
