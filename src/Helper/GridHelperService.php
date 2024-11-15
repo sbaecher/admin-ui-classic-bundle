@@ -616,18 +616,12 @@ class GridHelperService
         if (!$adminUser->isAdmin()) {
             $userIds = $adminUser->getRoles();
             $userIds[] = $adminUser->getId();
-            $conditionFilters[] = '(
-                    EXISTS (
-                        SELECT 1
-                        FROM users_workspaces_object
-                        WHERE userId IN (' . implode(',', $userIds) . ')
-                        AND (
-                            LOCATE(CONCAT(`path`, `key`), cpath) = 1
-                            OR LOCATE(cpath, CONCAT(`path`, `key`)) = 1
-                        )
-                        AND list = 1
-                    )
-                )';
+            $ids = implode(',', $userIds);
+            $conditionFilters[] = " (
+                (select list from users_workspaces_object where userId in ($ids) AND CONCAT(`path`, `key`) LIKE CONCAT(cpath, '%')  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
+                OR
+                (select list from users_workspaces_object where userId in ($ids) AND cpath LIKE CONCAT(`path`, `key`, '%')  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
+             )";
         }
 
         $featureJoins = [];
