@@ -22,12 +22,17 @@ use PhpOffice\PhpSpreadsheet\Reader\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Exception;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Pimcore\Bundle\AdminBundle\Event\AdminEvents;
+use Pimcore\Bundle\BackendPowerToolsBundle\Utils\AlternativeElementTree\TreeBuilder\ObjectTreeBuilder;
+use Pimcore\Cache;
+use Pimcore\Db;
+use Pimcore\Helper\WorkspaceConditionHelper;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Objectbrick;
 use Pimcore\Model\User;
+use Pimcore\ValueObject\Sql\Condition;
 use Symfony\Component\EventDispatcher\GenericEvent;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
@@ -39,7 +44,8 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 class GridHelperService
 {
     public function __construct(
-        private readonly EventDispatcherInterface $eventDispatcher
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly WorkspaceConditionHelper $workspaceConditionHelper
     ) {
 
     }
@@ -614,13 +620,12 @@ class GridHelperService
         }
 
         if (!$adminUser->isAdmin()) {
-            $userIds = $adminUser->getRoles();
-            $userIds[] = $adminUser->getId();
-            $conditionFilters[] = ' (
-                                                    (select list from users_workspaces_object where userId in (' . implode(',', $userIds) . ') and LOCATE(CONCAT(`path`,`key`),cpath)=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
-                                                    OR
-                                                    (select list from users_workspaces_object where userId in (' . implode(',', $userIds) . ') and LOCATE(cpath,CONCAT(`path`,`key`))=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
-                                                 )';
+            $objectIds  = $this->workspaceConditionHelper->getAllowedElementsForUser(
+                $adminUser,
+                'object_' . $list->getClassId(),
+                'object'
+            );
+            $conditionFilters[] = '(oo_id IN (' . implode(',', $objectIds) . '))';
         }
 
         $featureJoins = [];
@@ -932,4 +937,38 @@ class GridHelperService
 
         return $response;
     }
+
+    private function getAllowedDataObjectsForUser(int $user, string $table, Condition $workspaceCondition): array
+    {
+        $cacheKey = 'gridObjectsForUsers_' . $user . '_' . $table;
+        Cache::remove($cacheKey);
+        $cache = Cache::load($cacheKey);
+
+        if ($cache !== false) {
+            return $cache;
+        }
+
+        $queryBuilder = Db::getConnection()->createQueryBuilder();
+        $queryBuilder
+            ->distinct()
+            ->select(
+                'o.id as id'
+            )
+            ->from($table, 'o')
+            ->andWhere(
+                $workspaceCondition->getQuery()
+            )
+            ->setParameters($workspaceCondition->getParams());
+
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative();
+        $result = array_column($result, 'id');
+
+        if(empty($result)) {
+            // set to -1 since we use it in an in condition
+            $result = [-1];
+        }
+        Cache::save($result, $cacheKey, ['output', 'user-' . $user]);
+        return $result;
+    }
+
 }
