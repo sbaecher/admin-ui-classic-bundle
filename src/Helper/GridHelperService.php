@@ -937,38 +937,4 @@ class GridHelperService
 
         return $response;
     }
-
-    private function getAllowedDataObjectsForUser(int $user, string $table, Condition $workspaceCondition): array
-    {
-        $cacheKey = 'gridObjectsForUsers_' . $user . '_' . $table;
-        Cache::remove($cacheKey);
-        $cache = Cache::load($cacheKey);
-
-        if ($cache !== false) {
-            return $cache;
-        }
-
-        $queryBuilder = Db::getConnection()->createQueryBuilder();
-        $queryBuilder
-            ->distinct()
-            ->select(
-                'o.id as id'
-            )
-            ->from($table, 'o')
-            ->andWhere(
-                $workspaceCondition->getQuery()
-            )
-            ->setParameters($workspaceCondition->getParams());
-
-        $result = $queryBuilder->executeQuery()->fetchAllAssociative();
-        $result = array_column($result, 'id');
-
-        if(empty($result)) {
-            // set to -1 since we use it in an in condition
-            $result = [-1];
-        }
-        Cache::save($result, $cacheKey, ['output', 'user-' . $user]);
-        return $result;
-    }
-
 }
