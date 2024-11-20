@@ -66,7 +66,7 @@ class Installer extends SettingsStoreAwareInstaller
         foreach (self::USER_PERMISSIONS as $permission) {
             if (in_array($permission, $existingKeys)) {
                 continue;
-            } 
+            }
 
             $db->insert('users_permission_definitions', [
                 $db->quoteIdentifier('key') => $permission,
