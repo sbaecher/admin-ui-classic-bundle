@@ -586,7 +586,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 'object' => $object,
                 'fieldname' => $fieldDefinition->getName(),
                 'class' => $object->getClass(),
-                'context' => $context
+                'context' => $context,
             ],
             $fieldDefinition
         );
